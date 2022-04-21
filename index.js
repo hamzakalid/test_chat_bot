@@ -6,11 +6,13 @@ const {
     ConfigurationServiceClientCredentialFactory,
     createBotFrameworkAuthenticationFromConfiguration,
     MemoryStorage,
-    UserState
+    UserState,
+    ConversationState
 } = require('botbuilder');
 
 // welcome bot file
 const { WelcomeBot } = require('./bot/Welcome');
+const { UserProfileDialog } = require('./dialogs/userProfile');
 
 // Create the AuthConfiguration object.
 const credentialsFactory = new ConfigurationServiceClientCredentialFactory({
@@ -35,14 +37,17 @@ adapter.onTurnError = async (context, error) => {
     // Send a message to the user
     await context.sendActivity('The bot encountered an error or bug.');
     await context.sendActivity('To continue to run this bot, please fix the bot source code.');
+    await ConversationState.delete(context);
 };
 
 // MemoryStorage
 const memoryStorage = new MemoryStorage();
+const conversationState = new ConversationState(memoryStorage);
 const userState = new UserState(memoryStorage);
 
 // Create the main dialog.
-const bot = new WelcomeBot(userState);
+const dialog = new UserProfileDialog(userState);
+const bot = new WelcomeBot(conversationState, userState, dialog);
 
 // Create HTTP server
 const server = restify.createServer();

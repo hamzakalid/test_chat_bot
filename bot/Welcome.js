@@ -3,37 +3,62 @@
 const { ActionTypes, ActivityHandler, CardFactory } = require('botbuilder');
 
 class WelcomeBot extends ActivityHandler {
-    constructor(userState) {
+    constructor(conversationState, userState, dialog) {
         super();
-
+        // Create state property accessors
+        if (!conversationState) throw new Error('[DialogBot]: Missing parameter. conversationState is required');
+        if (!userState) throw new Error('[DialogBot]: Missing parameter. userState is required');
+        if (!dialog) throw new Error('[DialogBot]: Missing parameter. dialog is required');
+        // Create state property accessors
+        this.conversationState = conversationState;
         this.userState = userState;
+        this.dialog = dialog;
+        this.dialogState = this.conversationState.createProperty('DialogState');
 
+        // onMessage activity handler
         this.onMessage(async (context, next) => {
-            const text = context.activity.text.toLowerCase();
+            console.log('Running dialog with Message Activity.');
+            console.log(this.dialogState);
+            const text = context.activity.text;
             switch (text) {
-            case 'hello':
-            case 'hi':
-                await context.sendActivity(`You said "${ context.activity.text }"`);
+            case 'start':
+                for (const idx in context.activity.membersAdded) {
+                    if (context.activity.membersAdded[idx].id !== context.activity.recipient.id) {
+                        await context.sendActivity('Welcome Dear customer 🥰.');
+                        await context.sendActivity('Welcome  Dear Customer.\n\n' +
+                            'I am your personal assistant. I can help you to get the best Foods 🥪 and Drinks 🍻.\n\n' +
+                            'Ask me anything about Food 🥪 and Drinks.🍻');
+                    }
+                }
                 break;
-            case 'intro':
-            case 'help':
-                await this.sendIntroCard(context);
-                break;
+            case 'food':
+                await context.sendActivity('Here is the list of our Food 🥪');
+                await context.sendActivity('1. 🍕 Pizza 🍕\n' +
+                    '2. 🍔 Burger 🍔\n' +
+                    '3. 🍟 Chips 🍟\n'
+                );
+            // eslint-disable-next-line no-fallthrough
+            case 'user':
+                await context.sendActivity('Here is the list of our Drinks 🍻');
+                console.log(context.activity.membersAdded);
+            // eslint-disable-next-line no-fallthrough
             default:
-                await context.sendActivity(`Sorry, I did not understand "${ context.activity.text }" \n\ntype **"intro"** or **"help"** for more information.`);
+                await context.sendActivity('Sorry, I did not understand that. Please try again.');
+                break;
             }
+            await this.dialog.run(context, this.dialogState);
             await next();
         });
         this.onMembersAdded(async (context, next) => {
-            const userName = context.activity.from.name;
             for (const idx in context.activity.membersAdded) {
                 if (context.activity.membersAdded[idx].id !== context.activity.recipient.id) {
                     await context.sendActivity('Welcome Dear customer 🥰.');
-                    await context.sendActivity(`Welcome  ${ userName }.\n\n` +
-                    'I am your personal assistant. I can help you to get the best Foods 🥪 and Drinks 🍻.\n\n' +
-                    'Ask me anything about Food 🥪 and Drinks.🍻');
+                    await context.sendActivity('Welcome  Dear Customer.\n\n' +
+                        'I am your personal assistant. I can help you to get the best Foods 🥪 and Drinks 🍻.\n\n' +
+                        'Ask me anything about Food 🥪 and Drinks.🍻');
                 }
             }
+
             await next();
         });
     }
@@ -42,6 +67,7 @@ class WelcomeBot extends ActivityHandler {
         await super.run(context);
 
         // Save state changes
+        await this.conversationState.saveChanges(context, false);
         await this.userState.saveChanges(context);
     }
 
